@@ -1416,8 +1416,7 @@ async function retryFailed() {
 function updateStats() {
   const succeeded = state.items.filter(x => x.result?.ok);
   const done = succeeded.filter(x => getEffectiveStatus(x) === 'done').length;
-  const notyet = succeeded.filter(x => getEffectiveStatus(x) === 'notyet' && !(x.result.multiple && !x.ignored)).length;
-  
+  const notyet = succeeded.filter(x => getEffectiveStatus(x) === 'notyet').length;
   const setText = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
@@ -1431,7 +1430,7 @@ function updateStats() {
 function renderResults() {
   const succeeded = state.items.filter(x => x.result?.ok);
   const done = succeeded.filter(x => getEffectiveStatus(x) === 'done').length;
-  const notyet = succeeded.filter(x => getEffectiveStatus(x) === 'notyet' && !(x.result.multiple && !x.ignored)).length;
+  const notyet = succeeded.filter(x => getEffectiveStatus(x) === 'notyet').length;
   const warn = succeeded.filter(x => x.result.multiple && !x.ignored).length;
 
 $('statDone').textContent = done;
