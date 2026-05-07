@@ -642,6 +642,10 @@
           </span>
         </h2>
         <div class="panel-body">
+        <div class="stats" style="margin-top:0;margin-bottom:14px">
+          <div class="stat done"><div class="n" id="statDoneList">0</div><div class="l">완료</div></div>
+          <div class="stat pending"><div class="n" id="statNotYetList">0</div><div class="l">미완료</div></div>
+        </div>
         <div class="tabs">
           <div class="tab active" data-tab="all">전체</div>
           <div class="tab" data-tab="done">완료</div>
@@ -1363,7 +1367,12 @@ async function processData() {
     }
     $('progressBar').style.width = `${((i + 1) / items.length) * 100}%`;
 $('statDone').textContent = done;
-    $('statNotYet').textContent = notyet;
+  $('statNotYet').textContent = notyet;
+  // 시설 점검 현황 패널의 통계도 업데이트
+  const statDoneList = $('statDoneList');
+  const statNotYetList = $('statNotYetList');
+  if (statDoneList) statDoneList.textContent = done;
+  if (statNotYetList) statNotYetList.textContent = notyet;
     await new Promise(res => setTimeout(res, 80));
   }
 
