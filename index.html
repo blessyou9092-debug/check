@@ -739,7 +739,23 @@ function isInspected(value) {
   if (!s) return false;
   return /완료|완|done|^o$|^ok$|^y$|yes|✓|true|1$/i.test(s);
 }
-
+function formatExcelDate(value) {
+  if (value == null || value === '') return '';
+  const s = String(value).trim();
+  // 이미 날짜 문자열이면 그대로
+  if (/[-./]/.test(s)) return s;
+  // 숫자면 엑셀 시리얼 → 날짜 변환
+  const num = Number(s);
+  if (!isFinite(num) || num < 1) return s;
+  // 엑셀 기준일: 1899-12-30 (1900년 윤년 버그 보정)
+  const ms = (num - 25569) * 86400 * 1000;
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) return s;
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 // ============================================================
 // 카카오 지오코딩
 // ============================================================
@@ -843,7 +859,7 @@ function parseExcelData(rows) {
         industry: cols.industry >= 0 ? String(row[cols.industry] || '').trim() : '',
         owner: cols.owner >= 0 ? String(row[cols.owner] || '').trim() : '',
         phone: cols.phone >= 0 ? String(row[cols.phone] || '').trim() : '',
-        date: cols.date >= 0 ? String(row[cols.date] || '').trim() : '',
+date: cols.date >= 0 ? formatExcelDate(row[cols.date]) : '',
         area: cols.area >= 0 ? String(row[cols.area] || '').trim() : '',
         dong: cols.dong >= 0 ? String(row[cols.dong] || '').trim() : '',
         team: cols.team >= 0 ? String(row[cols.team] || '').trim() : '',
