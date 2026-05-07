@@ -1358,10 +1358,8 @@ async function processData() {
       else notyet++;
     }
     $('progressBar').style.width = `${((i + 1) / items.length) * 100}%`;
-    $('statTotal').textContent = i + 1;
-    $('statDone').textContent = done;
+$('statDone').textContent = done;
     $('statNotYet').textContent = notyet;
-    $('statWarn').textContent = warn;
     await new Promise(res => setTimeout(res, 80));
   }
 
@@ -1407,10 +1405,8 @@ function renderResults() {
   const notyet = succeeded.filter(x => getEffectiveStatus(x) === 'notyet' && !(x.result.multiple && !x.ignored)).length;
   const warn = succeeded.filter(x => x.result.multiple && !x.ignored).length;
 
-  $('statTotal').textContent = state.items.length;
-  $('statDone').textContent = done;
+$('statDone').textContent = done;
   $('statNotYet').textContent = notyet;
-  $('statWarn').textContent = warn;
 
   let filtered;
   if (state.filter === 'done') filtered = state.items.filter(x => x.result?.ok && getEffectiveStatus(x) === 'done');
