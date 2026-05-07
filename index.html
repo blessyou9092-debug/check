@@ -1047,13 +1047,13 @@ function refreshMarkers() {
       const unignoreBtn = popupEl.querySelector('.popup-unignore-btn');
       const deleteBtn = popupEl.querySelector('.popup-delete-btn');
 
-      if (toggleBtn) {
+if (toggleBtn) {
         toggleBtn.addEventListener('click', () => {
           const id = toggleBtn.dataset.id;
           const item = state.itemsById[id];
           if (!item) return;
           const cur = getEffectiveStatus(item);
-          updateItemField(id, { userStatus: cur === 'done' ? 'notyet' : 'done' });
+          updateStatus(id, cur === 'done' ? 'notyet' : 'done');
           marker.closePopup();
         });
       }
@@ -1242,6 +1242,15 @@ async function updateItemField(id, fields) {
   } catch (e) {
     showToast('저장 실패: ' + e.message);
   }
+}
+
+// 점검 상태 변경 시 시각도 함께 기록
+async function updateStatus(id, newStatus) {
+  const now = new Date();
+  const checkedAt = newStatus === 'done'
+    ? `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+    : '';
+  await updateItemField(id, { userStatus: newStatus, checkedAt });
 }
 
 async function deleteItem(id, item) {
@@ -1517,13 +1526,13 @@ $('statDone').textContent = done;
     `;
   }).join('');
 
-  list.querySelectorAll('.toggle-btn').forEach(btn => {
+list.querySelectorAll('.toggle-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       const id = e.target.dataset.id;
       const it = state.itemsById[id];
       if (!it) return;
       const cur = getEffectiveStatus(it);
-      updateItemField(id, { userStatus: cur === 'done' ? 'notyet' : 'done' });
+      updateStatus(id, cur === 'done' ? 'notyet' : 'done');
     });
   });
   list.querySelectorAll('.ignore-btn').forEach(btn => {
@@ -1598,8 +1607,8 @@ function exportCsv() {
     return (a.business || '').localeCompare(b.business || '', 'ko');
   });
 
-  const rows = [
-    ['점검상태', '상호', '업종', '대표자', '전화', '점검일자', '원본주소', '매칭주소', '위도', '경도', '엑셀원본상태', '매칭결과', '비고']
+const rows = [
+    ['점검상태', '점검완료시각', '상호', '업종', '대표자', '전화', '점검일자', '원본주소', '매칭주소', '위도', '경도', '엑셀원본상태', '매칭결과', '비고']
   ];
   for (const it of sorted) {
     const status = getEffectiveStatus(it) === 'done' ? '완료' : '미완료';
@@ -1608,6 +1617,7 @@ function exportCsv() {
       : '실패';
     rows.push([
       status,
+      it.checkedAt || '',
       it.business || '',
       it.industry || '',
       it.owner || '',
@@ -1622,13 +1632,13 @@ function exportCsv() {
       it.remark || ''
     ]);
   }
-
   // 워크북 생성
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
   // 컬럼 폭 설정
-  ws['!cols'] = [
+ws['!cols'] = [
     { wch: 8 },   // 점검상태
+    { wch: 16 },  // 점검완료시각
     { wch: 24 },  // 상호
     { wch: 12 },  // 업종
     { wch: 10 },  // 대표자
