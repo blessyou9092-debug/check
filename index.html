@@ -619,13 +619,13 @@
           </div>
           <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
 
-          <div id="resultsPanel" class="results" style="display:none">
+<div id="resultsPanel" class="results">
             <div class="stats">
               <div class="stat done"><div class="n" id="statDone">0</div><div class="l">완료</div></div>
               <div class="stat pending"><div class="n" id="statNotYet">0</div><div class="l">미완료</div></div>
             </div>
             <div class="row" style="margin-top:12px">
-<button class="secondary" id="exportCsvBtn">엑셀 저장</button>
+              <button class="secondary" id="exportCsvBtn">📥 엑셀 저장</button>
               <button class="secondary" id="retryFailedBtn">실패 재시도</button>
               <button class="secondary" id="clearAllBtn">전체 삭제</button>
             </div>
@@ -1348,10 +1348,9 @@ async function processData() {
     return;
   }
 
-  $('processBtn').disabled = true;
+$('processBtn').disabled = true;
   $('processBtn').textContent = '매칭 중...';
   $('progress').classList.add('active');
-  $('resultsPanel').style.display = 'block';
 
   let done = 0, notyet = 0, warn = 0;
   for (let i = 0; i < items.length; i++) {
@@ -1707,12 +1706,11 @@ function init() {
     await handleFile(file);
   });
 
-  $('clearLocalBtn').addEventListener('click', () => {
+$('clearLocalBtn').addEventListener('click', () => {
     $('inputAddrs').value = '';
     fileInput.value = '';
     state.pendingFile = null;
     $('uploadArea').querySelector('.text').innerHTML = '클릭 또는 드래그<br><span style="font-size:10px;color:var(--ink-muted)">.xlsx, .xls, .csv</span>';
-    $('resultsPanel').style.display = 'none';
   });
   $('processBtn').addEventListener('click', processData);
   $('exportCsvBtn').addEventListener('click', exportCsv);
