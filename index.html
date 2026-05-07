@@ -227,7 +227,11 @@
     border: 1px solid var(--line);
     z-index: 1;
   }
-  @media (min-width: 900px) { #map { height: 580px; } }
+@media (min-width: 900px) { #map { height: 580px; } }
+  #map.expanded {
+    height: calc(100vh - 180px);
+    min-height: 500px;
+  }
 
   /* 지도 위 컨트롤 (현재 위치 버튼) */
   .map-controls {
@@ -291,9 +295,9 @@
     100% { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0); }
   }
 
-  .stats {
+.stats {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     margin-top: 14px;
   }
@@ -612,13 +616,12 @@
 
           <div id="resultsPanel" class="results" style="display:none">
             <div class="stats">
-              <div class="stat"><div class="n" id="statTotal">0</div><div class="l">전체</div></div>
+<div class="stats">
               <div class="stat done"><div class="n" id="statDone">0</div><div class="l">완료</div></div>
               <div class="stat pending"><div class="n" id="statNotYet">0</div><div class="l">미완료</div></div>
-              <div class="stat warn"><div class="n" id="statWarn">0</div><div class="l">확인</div></div>
             </div>
             <div class="row" style="margin-top:12px">
-              <button class="secondary" id="exportCsvBtn">CSV 저장</button>
+<button class="secondary" id="exportCsvBtn">엑셀 저장</button>
               <button class="secondary" id="retryFailedBtn">실패 재시도</button>
               <button class="secondary" id="clearAllBtn">전체 삭제</button>
             </div>
@@ -626,9 +629,15 @@
         </div>
       </div>
 
-      <!-- 시설 목록 -->
-      <div class="panel" style="margin-top:12px">
-        <h2><span class="num">목록</span>시설 점검 현황</h2>
+<!-- 시설 목록 -->
+      <div class="panel collapsible" id="listPanel" style="margin-top:12px">
+        <h2>
+          <span class="left">
+            <span class="num">목록</span>
+            시설 점검 현황
+          </span>
+        </h2>
+        <div class="panel-body">
         <div class="tabs">
           <div class="tab active" data-tab="all">전체</div>
           <div class="tab" data-tab="done">완료</div>
@@ -638,6 +647,7 @@
         </div>
         <div class="list" id="resultList">
           <div class="empty">데이터를 불러오는 중...</div>
+        </div>
         </div>
       </div>
     </div>
@@ -657,9 +667,17 @@
                 <line x1="19" y1="12" x2="22" y2="12"/>
               </svg>
             </button>
-            <button class="map-btn" id="fitBtn" title="전체 보기">
+<button class="map-btn" id="fitBtn" title="전체 보기">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4"/>
+              </svg>
+            </button>
+            <button class="map-btn" id="expandBtn" title="지도 크게 보기">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 3 21 3 21 9"/>
+                <polyline points="9 21 3 21 3 15"/>
+                <line x1="21" y1="3" x2="14" y2="10"/>
+                <line x1="3" y1="21" x2="10" y2="14"/>
               </svg>
             </button>
           </div>
@@ -1548,40 +1566,84 @@ function escapeHtml(s) {
 
 function exportCsv() {
   if (state.items.length === 0) return;
-  const rows = [['상호', '업종', '대표자', '전화', '점검일자', '원본주소', '정제주소', '매칭주소', '위도', '경도', '점검상태', '엑셀원본상태', '매칭결과', '메모']];
-  for (const it of state.items) {
+
+  // 점검 상태 기준으로 정렬: 완료 → 미완료, 같은 그룹 안에서는 상호 가나다순
+  const sorted = [...state.items].sort((a, b) => {
+    const sa = getEffectiveStatus(a) === 'done' ? 0 : 1;
+    const sb = getEffectiveStatus(b) === 'done' ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return (a.business || '').localeCompare(b.business || '', 'ko');
+  });
+
+  const rows = [
+    ['점검상태', '상호', '업종', '대표자', '전화', '점검일자', '원본주소', '매칭주소', '위도', '경도', '엑셀원본상태', '매칭결과', '비고']
+  ];
+  for (const it of sorted) {
     const status = getEffectiveStatus(it) === 'done' ? '완료' : '미완료';
     const matchStatus = !it.result ? '미처리'
       : it.result.ok ? (it.ignored ? '무시처리' : (it.result.multiple ? '확인필요' : '성공'))
       : '실패';
     rows.push([
-      it.business, it.industry, it.owner, it.phone, it.date,
-      it.original, it.cleaned,
+      status,
+      it.business || '',
+      it.industry || '',
+      it.owner || '',
+      it.phone || '',
+      it.date || '',
+      it.original || '',
       it.result?.matchedAddress || '',
-      it.result?.lat || '', it.result?.lng || '',
-      status, it.statusOriginal,
-      matchStatus, it.result?.error || ''
+      it.result?.lat || '',
+      it.result?.lng || '',
+      it.statusOriginal || '',
+      matchStatus,
+      it.remark || ''
     ]);
   }
-  const csv = rows.map(r => r.map(c => {
-    const s = String(c).replace(/"/g, '""');
-    return /[",\n]/.test(s) ? `"${s}"` : s;
-  }).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `inspection_map_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
+  // 워크북 생성
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // 컬럼 폭 설정
+  ws['!cols'] = [
+    { wch: 8 },   // 점검상태
+    { wch: 24 },  // 상호
+    { wch: 12 },  // 업종
+    { wch: 10 },  // 대표자
+    { wch: 14 },  // 전화
+    { wch: 12 },  // 점검일자
+    { wch: 32 },  // 원본주소
+    { wch: 32 },  // 매칭주소
+    { wch: 12 },  // 위도
+    { wch: 12 },  // 경도
+    { wch: 10 },  // 엑셀원본상태
+    { wch: 10 },  // 매칭결과
+    { wch: 16 }   // 비고
+  ];
+
+  // 헤더 행 굵게
+  const headerRange = XLSX.utils.decode_range(ws['!ref']);
+  for (let c = headerRange.s.c; c <= headerRange.e.c; c++) {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+    if (ws[cellRef]) {
+      ws[cellRef].s = { font: { bold: true } };
+    }
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '시설점검현황');
+
+  const filename = `시설점검현황_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+}
 // ============================================================
 // 초기화
 // ============================================================
 function init() {
-  $('adminPanel').querySelector('h2').addEventListener('click', () => {
+$('adminPanel').querySelector('h2').addEventListener('click', () => {
     $('adminPanel').classList.toggle('collapsed');
+  });
+  $('listPanel').querySelector('h2').addEventListener('click', () => {
+    $('listPanel').classList.toggle('collapsed');
   });
 
   document.querySelectorAll('.input-tab').forEach(t => {
@@ -1628,8 +1690,15 @@ function init() {
   $('clearAllBtn').addEventListener('click', deleteAllItems);
 
   // 지도 컨트롤
-  $('locateBtn').addEventListener('click', startLocationTracking);
+$('locateBtn').addEventListener('click', startLocationTracking);
   $('fitBtn').addEventListener('click', fitToAllMarkers);
+  $('expandBtn').addEventListener('click', () => {
+    const mapEl = $('map');
+    mapEl.classList.toggle('expanded');
+    $('expandBtn').classList.toggle('active');
+    // Leaflet에 크기 변경 알림 (마커 위치 재계산)
+    setTimeout(() => state.map.invalidateSize(), 250);
+  });
 
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => {
