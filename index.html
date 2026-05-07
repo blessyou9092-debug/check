@@ -1635,11 +1635,16 @@ function exportCsv() {
 // 초기화
 // ============================================================
 function init() {
-$('adminPanel').querySelector('h2').addEventListener('click', () => {
-    $('adminPanel').classList.toggle('collapsed');
-  });
-  $('listPanel').querySelector('h2').addEventListener('click', () => {
-    $('listPanel').classList.toggle('collapsed');
+  // 모든 collapsible 패널에 토글 등록
+  document.querySelectorAll('.panel.collapsible').forEach(panel => {
+    const header = panel.querySelector('h2');
+    if (header) {
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('collapsed');
+      });
+    }
   });
 
   document.querySelectorAll('.input-tab').forEach(t => {
