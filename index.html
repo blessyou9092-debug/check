@@ -1222,6 +1222,7 @@ function startLiveSync() {
       state.items = items;
       state.itemsById = byId;
       setLiveStatus('connected', `연결됨 · ${items.length}건`);
+      updateStats();
       renderResults();
       refreshMarkers();
     },
@@ -1412,6 +1413,21 @@ async function retryFailed() {
 // ============================================================
 // 결과 렌더링
 // ============================================================
+function updateStats() {
+  const succeeded = state.items.filter(x => x.result?.ok);
+  const done = succeeded.filter(x => getEffectiveStatus(x) === 'done').length;
+  const notyet = succeeded.filter(x => getEffectiveStatus(x) === 'notyet' && !(x.result.multiple && !x.ignored)).length;
+  
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  setText('statDone', done);
+  setText('statNotYet', notyet);
+  setText('statDoneList', done);
+  setText('statNotYetList', notyet);
+}
+
 function renderResults() {
   const succeeded = state.items.filter(x => x.result?.ok);
   const done = succeeded.filter(x => getEffectiveStatus(x) === 'done').length;
