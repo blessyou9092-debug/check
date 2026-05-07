@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a1a">
+<title>은평구 시설점검 지도</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --bg-card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #555;
+    --ink-muted: #8a8a8a;
+    --line: #e2ddd2;
+    --line-soft: #ebe6dc;
+    --accent: #c0392b;
+    --accent-soft: #f4dad6;
+    --warn: #d68910;
+    --warn-soft: #fbecc8;
+    --ok: #1e7e5a;
+    --ok-soft: #d4ebe1;
+    --done: #2563eb;
+    --done-soft: #dbe5fb;
+    --me: #6366f1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+    font-size: 15px;
+  }
+  body { padding: 16px 14px 80px; }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-family: 'Gowun Batang', serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    margin-top: 6px;
+  }
+  .sub { color: var(--ink-soft); font-size: 13px; margin-top: 4px; }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .live-status {
+    font-size: 11px;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ink-muted);
+    animation: pulse 2s infinite;
+  }
+  .live-dot.connected { background: var(--ok); }
+  .live-dot.error { background: var(--accent); animation: none; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 900px) {
+    body { padding: 32px 24px 64px; }
+    h1 { font-size: 32px; }
+    .badge { font-size: 11px; padding: 4px 10px; }
+    .grid { grid-template-columns: 1fr 1.4fr; gap: 24px; }
+    header { padding-bottom: 24px; margin-bottom: 32px; }
+  }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px;
+  }
+  @media (min-width: 900px) { .panel { padding: 24px; } }
+  .panel h2 {
+    font-family: 'Gowun Batang', serif;
+    font-size: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  @media (min-width: 900px) { .panel h2 { font-size: 18px; } }
+  .panel h2 .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+  .panel.collapsible h2 {
+    cursor: pointer;
+    margin-bottom: 0;
+    user-select: none;
+    justify-content: space-between;
+  }
+  .panel.collapsible h2::after {
+    content: '▾';
+    font-size: 12px;
+    color: var(--ink-muted);
+    transition: transform 0.2s;
+  }
+  .panel.collapsible.collapsed h2::after {
+    transform: rotate(-90deg);
+  }
+  .panel.collapsible h2 .left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .panel.collapsible .panel-body {
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  .panel.collapsible.collapsed .panel-body {
+    display: none;
+  }
+  textarea, input[type="text"], input[type="file"] {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: #fafaf7;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    border-radius: 2px;
+    color: var(--ink);
+    -webkit-appearance: none;
+  }
+  input[type="file"] {
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    padding: 8px;
+  }
+  textarea:focus, input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+  }
+  textarea { min-height: 120px; line-height: 1.5; resize: vertical; }
+  .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 100px; }
+  button {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    padding: 11px 16px;
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 2px;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+  }
+  button:active { opacity: 0.7; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  button.done {
+    background: var(--done);
+    color: white;
+  }
+  button.danger {
+    background: var(--accent);
+    color: white;
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .hint a { color: var(--accent); }
+  .hint code {
+    background: var(--line-soft);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+
+  /* 지도 영역 */
+  .map-wrap {
+    position: relative;
+  }
+  #map {
+    width: 100%;
+    height: 380px;
+    border-radius: 2px;
+    background: #ebe6dc;
+    border: 1px solid var(--line);
+    z-index: 1;
+  }
+  @media (min-width: 900px) { #map { height: 580px; } }
+
+  /* 지도 위 컨트롤 (현재 위치 버튼) */
+  .map-controls {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .map-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid var(--line);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    color: var(--ink-soft);
+    transition: all 0.15s;
+  }
+  .map-btn:active { transform: scale(0.92); }
+  .map-btn.active {
+    background: var(--me);
+    color: white;
+    border-color: var(--me);
+  }
+  .map-btn svg { width: 22px; height: 22px; }
+  .map-btn.locating {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* 내 위치 마커 */
+  .me-marker {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--me);
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+  }
+  .me-pulse {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--me);
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+    animation: mePulse 2s ease-out infinite;
+  }
+  @keyframes mePulse {
+    0% { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4); }
+    50% { box-shadow: 0 0 0 14px rgba(99, 102, 241, 0); }
+    100% { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0); }
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .stat {
+    text-align: center;
+    padding: 10px 4px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+  }
+  .stat .n {
+    font-family: 'Gowun Batang', serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .stat .l {
+    font-size: 10px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+  .stat.done .n { color: var(--done); }
+  .stat.pending .n { color: var(--accent); }
+  .stat.warn .n { color: var(--warn); }
+  .results { margin-top: 14px; }
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+    font-weight: 500;
+  }
+  .list {
+    max-height: 460px;
+    overflow-y: auto;
+    border: 1px solid var(--line-soft);
+    border-radius: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .item {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    align-items: start;
+    font-size: 13px;
+  }
+  .item:last-child { border-bottom: none; }
+  .item .idx {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-muted);
+    padding-top: 2px;
+  }
+  .item .body { min-width: 0; }
+  .item .biz {
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .item .original {
+    color: var(--ink-soft);
+    word-break: break-all;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .item .meta {
+    font-size: 11px;
+    color: var(--ink-muted);
+    margin-bottom: 4px;
+  }
+  .item .cleaned {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ok);
+    word-break: break-all;
+    line-height: 1.4;
+  }
+  .item .err {
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 2px;
+  }
+  .item .row-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .item .row-actions button {
+    flex: 0 0 auto;
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-right: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.fail { background: var(--accent-soft); color: var(--accent); }
+  .tag.pending { background: var(--line-soft); color: var(--ink-muted); }
+  .tag.done { background: var(--done-soft); color: var(--done); font-weight: 500; }
+  .tag.notyet { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+  .tag.ignored { background: #f0e6d8; color: #996b1f; font-weight: 500; }
+  .empty {
+    padding: 32px;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 13px;
+  }
+  .footer-note {
+    margin-top: 24px;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+  .edit-input { width: 100%; margin-top: 6px; }
+  .progress {
+    margin-top: 10px;
+    height: 4px;
+    background: var(--line-soft);
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress.active { display: block; }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s;
+  }
+  .pin {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  .pin.notyet { background: #c0392b; }
+  .pin.done { background: #2563eb; }
+  .pin.warn { background: #d68910; }
+
+  .upload-area {
+    border: 2px dashed var(--line);
+    border-radius: 4px;
+    padding: 16px;
+    text-align: center;
+    transition: all 0.15s;
+    cursor: pointer;
+    background: #fafaf7;
+  }
+  .upload-area:hover, .upload-area.drag {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .upload-area .icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+    opacity: 0.4;
+  }
+  .upload-area .text {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .upload-area input { display: none; }
+
+  .input-tabs {
+    display: flex;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .input-tab {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    user-select: none;
+  }
+  .input-tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+    font-weight: 500;
+  }
+  .input-content { display: none; }
+  .input-content.active { display: block; }
+
+  .leaflet-popup-content {
+    margin: 10px 12px !important;
+    font-family: 'IBM Plex Sans KR', sans-serif !important;
+  }
+  .popup-biz {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: var(--ink);
+  }
+  .popup-meta {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 2px;
+  }
+  .popup-addr {
+    font-size: 11px;
+    color: #666;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid #eee;
+  }
+  .popup-status {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #eee;
+  }
+  .popup-status button {
+    width: 100%;
+    font-size: 12px;
+    padding: 6px;
+    margin-top: 4px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 4px;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <span class="badge">Eunpyeong · Inspection Map</span>
+      <h1>은평구 시설점검 지도</h1>
+      <div class="sub">실시간 공유 · 다중 사용자 편집</div>
+    </div>
+    <div class="live-status">
+      <div class="live-dot" id="liveDot"></div>
+      <span id="liveText">연결 중...</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <!-- 데이터 관리 (접힘 기본) -->
+      <div class="panel collapsible collapsed" id="adminPanel">
+        <h2>
+          <span class="left">
+            <span class="num">관리</span>
+            데이터 업로드 · 검증
+          </span>
+        </h2>
+        <div class="panel-body">
+          <div class="hint" style="margin-top:0;margin-bottom:10px">
+            새 엑셀 파일을 올리면 모든 사용자에게 즉시 반영됩니다.
+          </div>
+          <div class="input-tabs">
+            <div class="input-tab active" data-input="file">엑셀 파일</div>
+            <div class="input-tab" data-input="text">텍스트</div>
+          </div>
+
+          <div class="input-content active" id="inputFileTab">
+            <label class="upload-area" id="uploadArea">
+              <div class="icon">📊</div>
+              <div class="text">클릭 또는 드래그<br><span style="font-size:10px;color:var(--ink-muted)">.xlsx, .xls, .csv</span></div>
+              <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+            </label>
+          </div>
+
+          <div class="input-content" id="inputTextTab">
+            <textarea id="inputAddrs" placeholder="한 줄에 하나씩"></textarea>
+          </div>
+
+          <div class="row">
+            <button id="processBtn">매칭 + 공유 저장</button>
+            <button class="secondary" id="clearLocalBtn">취소</button>
+          </div>
+          <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+
+          <div id="resultsPanel" class="results" style="display:none">
+            <div class="stats">
+              <div class="stat"><div class="n" id="statTotal">0</div><div class="l">전체</div></div>
+              <div class="stat done"><div class="n" id="statDone">0</div><div class="l">완료</div></div>
+              <div class="stat pending"><div class="n" id="statNotYet">0</div><div class="l">미완료</div></div>
+              <div class="stat warn"><div class="n" id="statWarn">0</div><div class="l">확인</div></div>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <button class="secondary" id="exportCsvBtn">CSV 저장</button>
+              <button class="secondary" id="retryFailedBtn">실패 재시도</button>
+              <button class="secondary" id="clearAllBtn">전체 삭제</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 시설 목록 -->
+      <div class="panel" style="margin-top:12px">
+        <h2><span class="num">목록</span>시설 점검 현황</h2>
+        <div class="tabs">
+          <div class="tab active" data-tab="all">전체</div>
+          <div class="tab" data-tab="done">완료</div>
+          <div class="tab" data-tab="notyet">미완료</div>
+          <div class="tab" data-tab="warn">확인</div>
+          <div class="tab" data-tab="fail">실패</div>
+        </div>
+        <div class="list" id="resultList">
+          <div class="empty">데이터를 불러오는 중...</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2><span class="num">지도</span>점검 위치</h2>
+        <div class="map-wrap">
+          <div id="map"></div>
+          <div class="map-controls">
+            <button class="map-btn" id="locateBtn" title="현재 위치">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <line x1="12" y1="2" x2="12" y2="5"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
+                <line x1="2" y1="12" x2="5" y2="12"/>
+                <line x1="19" y1="12" x2="22" y2="12"/>
+              </svg>
+            </button>
+            <button class="map-btn" id="fitBtn" title="전체 보기">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:8px">
+          🔵 점검완료 · 🔴 미완료 · 🟡 확인 필요 · 🟣 내 위치
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">EUNPYEONG · INSPECTION MAP · v6.0 · GPS</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import {
+    getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, writeBatch, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDcmH8fTLOvw65SLxAB1-1J66NCfFzvRAo",
+    authDomain: "check-4fcf3.firebaseapp.com",
+    projectId: "check-4fcf3",
+    storageBucket: "check-4fcf3.firebasestorage.app",
+    messagingSenderId: "39857497560",
+    appId: "1:39857497560:web:43849503f34ed43b223ead"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  window._fb = { db, doc, setDoc, deleteDoc, onSnapshot, collection, writeBatch, getDocs };
+</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const KAKAO_API_KEY = 'fb70a2d7b56e8b2917c28d79384af0af';
+const FIRESTORE_COLLECTION = 'facilities';
+
+// ============================================================
+// 주소 정제
+// ============================================================
+function splitMultipleAddresses(line) {
+  const oeMatch = line.match(/^(.+?)\s*외\s*\d+개소\s*\((.+?)\)\s*$/);
+  if (oeMatch) return [oeMatch[1].trim(), oeMatch[2].trim()];
+  return [line];
+}
+
+function cleanAddressString(raw) {
+  let s = String(raw || '').trim();
+  if (!s) return null;
+  let parenInfo = null;
+  const parenMatch = s.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  if (parenMatch) {
+    s = parenMatch[1].trim();
+    parenInfo = parenMatch[2].trim();
+  }
+  let road = s;
+  const commaIdx = s.indexOf(',');
+  if (commaIdx >= 0) road = s.substring(0, commaIdx).trim();
+  const roadPattern = /^(.+?(?:로|길|대로))\s+(\d+(?:-\d+)?)/;
+  const roadMatch = road.match(roadPattern);
+  let cleaned = roadMatch ? `${roadMatch[1]} ${roadMatch[2]}` : road;
+  return {
+    cleaned: cleaned,
+    cleanedWithDistrict: `서울 은평구 ${cleaned}`,
+    parenInfo: parenInfo
+  };
+}
+
+function isInspected(value) {
+  if (value == null) return false;
+  const s = String(value).trim().toLowerCase();
+  if (!s) return false;
+  return /완료|완|done|^o$|^ok$|^y$|yes|✓|true|1$/i.test(s);
+}
+
+// ============================================================
+// 카카오 지오코딩
+// ============================================================
+const KAKAO_URL = 'https://dapi.kakao.com/v2/local/search/address.json';
+
+async function geocode(address) {
+  try {
+    const url = `${KAKAO_URL}?query=${encodeURIComponent(address)}`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `KakaoAK ${KAKAO_API_KEY}` }
+    });
+    if (!res.ok) {
+      if (res.status === 401) return { ok: false, error: 'API 키 오류' };
+      if (res.status === 403) return { ok: false, error: '도메인 미등록' };
+      return { ok: false, error: `HTTP ${res.status}` };
+    }
+    const data = await res.json();
+    if (!data.documents || data.documents.length === 0) {
+      return { ok: false, error: '결과 없음' };
+    }
+    const doc = data.documents[0];
+    return {
+      ok: true,
+      lat: parseFloat(doc.y),
+      lng: parseFloat(doc.x),
+      matchedAddress: doc.road_address?.address_name || doc.address?.address_name || address,
+      multiple: data.documents.length > 1
+    };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ============================================================
+// 엑셀 파싱
+// ============================================================
+const COLUMN_ALIASES = {
+  business: ['상호', '상호명', '업소명', '시설명', '명칭'],
+  address: ['시설주소(도로명)', '시설주소', '도로명주소', '주소', '도로명', 'address'],
+  status: ['점검여부', '점검상태', '상태', '점검결과'],
+  industry: ['업종', '업태', '종목'],
+  owner: ['대표자성명', '대표자', '대표', '성명'],
+  phone: ['시설전화번호', '전화번호', '연락처', '전화'],
+  date: ['점검일자', '점검일', '일자', '날짜'],
+  area: ['시설면적(㎡)', '시설면적', '면적'],
+  dong: ['행정동', '동'],
+  team: ['팀번', '팀'],
+  no: ['연번', '번호', 'no'],
+  remark: ['비고', '메모', '특이사항']
+};
+
+function findColumn(headers, aliases) {
+  for (const a of aliases) {
+    const idx = headers.findIndex(h => String(h || '').trim() === a);
+    if (idx >= 0) return idx;
+  }
+  for (const a of aliases) {
+    const idx = headers.findIndex(h => String(h || '').trim().includes(a));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function parseExcelData(rows) {
+  if (!rows || rows.length === 0) return [];
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    const row = rows[i].map(c => String(c || ''));
+    if (row.some(c => /시설주소|상호|점검여부|도로명/.test(c))) {
+      headerIdx = i;
+      break;
+    }
+  }
+  const headers = rows[headerIdx];
+  const cols = {};
+  for (const [key, aliases] of Object.entries(COLUMN_ALIASES)) {
+    cols[key] = findColumn(headers, aliases);
+  }
+  if (cols.address < 0) {
+    throw new Error('주소 컬럼을 찾을 수 없습니다.');
+  }
+
+  const items = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every(c => c == null || String(c).trim() === '')) continue;
+    const addr = String(row[cols.address] || '').trim();
+    if (!addr) continue;
+
+    const splits = splitMultipleAddresses(addr);
+    for (let s = 0; s < splits.length; s++) {
+      const part = splits[s];
+      const cleaned = cleanAddressString(part);
+      if (!cleaned) continue;
+
+      const item = {
+        original: part,
+        cleaned: cleaned.cleaned,
+        cleanedWithDistrict: cleaned.cleanedWithDistrict,
+        business: cols.business >= 0 ? String(row[cols.business] || '').trim() : '',
+        industry: cols.industry >= 0 ? String(row[cols.industry] || '').trim() : '',
+        owner: cols.owner >= 0 ? String(row[cols.owner] || '').trim() : '',
+        phone: cols.phone >= 0 ? String(row[cols.phone] || '').trim() : '',
+        date: cols.date >= 0 ? String(row[cols.date] || '').trim() : '',
+        area: cols.area >= 0 ? String(row[cols.area] || '').trim() : '',
+        dong: cols.dong >= 0 ? String(row[cols.dong] || '').trim() : '',
+        team: cols.team >= 0 ? String(row[cols.team] || '').trim() : '',
+        no: cols.no >= 0 ? String(row[cols.no] || '').trim() : '',
+        remark: cols.remark >= 0 ? String(row[cols.remark] || '').trim() : '',
+        statusOriginal: cols.status >= 0 ? String(row[cols.status] || '').trim() : '',
+      };
+      if (s > 0) item.business = (item.business ? item.business + ' (분점)' : '');
+      items.push(item);
+    }
+  }
+  return items;
+}
+
+async function loadExcelFile(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  return parseExcelData(rows);
+}
+
+// ============================================================
+// 상태
+// ============================================================
+let state = {
+  items: [],
+  itemsById: {},
+  filter: 'all',
+  inputMode: 'file',
+  map: null,
+  markers: [],
+  unsubscribe: null,
+  pendingFile: null,
+  // GPS 관련
+  watchId: null,
+  myMarker: null,
+  myAccuracyCircle: null,
+  trackingMode: false, // true면 위치 변경시 자동으로 지도 이동
+};
+
+const $ = id => document.getElementById(id);
+
+function makeId(business, cleaned, existing) {
+  const base = `${(business || '').replace(/[\/\.#\$\[\]]/g, '_')}__${(cleaned || '').replace(/[\/\.#\$\[\]]/g, '_')}`.substring(0, 380) || 'unknown';
+  let id = base;
+  let n = 1;
+  while (existing.has(id)) {
+    id = `${base}__${n}`;
+    n++;
+  }
+  return id;
+}
+
+function showToast(msg, ms=2500) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function getEffectiveStatus(it) {
+  if (it.ignored) return 'done';
+  if (it.userStatus) return it.userStatus;
+  return isInspected(it.statusOriginal) ? 'done' : 'notyet';
+}
+
+// ============================================================
+// 지도
+// ============================================================
+function initMap() {
+  state.map = L.map('map', {
+    center: [37.6027, 126.9290],
+    zoom: 13,
+    tap: true,
+    zoomControl: true
+  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(state.map);
+
+  // 사용자가 지도를 직접 움직이면 추적 모드 해제
+  state.map.on('dragstart', () => {
+    if (state.trackingMode) {
+      state.trackingMode = false;
+      $('locateBtn').classList.remove('active');
+    }
+  });
+}
+
+function clearMarkers() {
+  state.markers.forEach(m => state.map.removeLayer(m.marker));
+  state.markers = [];
+}
+
+function buildPopupHtml(it) {
+  const status = getEffectiveStatus(it);
+  const lines = [];
+  if (it.business) lines.push(`<div class="popup-biz">${escapeHtml(it.business)}</div>`);
+  if (it.industry) lines.push(`<div class="popup-meta">업종: ${escapeHtml(it.industry)}</div>`);
+  if (it.owner) lines.push(`<div class="popup-meta">대표자: ${escapeHtml(it.owner)}</div>`);
+  if (it.phone) lines.push(`<div class="popup-meta">전화: ${escapeHtml(it.phone)}</div>`);
+  if (it.date) lines.push(`<div class="popup-meta">점검일자: ${escapeHtml(it.date)}</div>`);
+  lines.push(`<div class="popup-addr">${escapeHtml(it.original)}</div>`);
+
+  const statusLabel = status === 'done' ? '점검완료' : '미완료';
+  const statusColor = status === 'done' ? '#2563eb' : '#c0392b';
+  const ignoreNote = it.ignored ? '<div style="font-size:10px;color:#996b1f;margin-top:2px">⚠ 매칭 확인 무시 처리됨</div>' : '';
+
+  lines.push(`<div class="popup-status">
+    <div style="font-size:11px;color:#666">상태: <strong style="color:${statusColor}">${statusLabel}</strong></div>
+    ${ignoreNote}
+    <button class="popup-toggle-btn" data-id="${it.id}" style="background:${status === 'done' ? '#c0392b' : '#2563eb'};color:white;border:none;border-radius:2px;cursor:pointer">
+      ${status === 'done' ? '미완료로' : '✓ 완료로 변경'}
+    </button>
+    ${it.result?.multiple && !it.ignored ? `
+      <button class="popup-ignore-btn" data-id="${it.id}" style="background:transparent;border:1px solid #ddd;color:#555;border-radius:2px;cursor:pointer;margin-top:4px">
+        매칭 확인 무시 (정상 처리)
+      </button>
+    ` : ''}
+    ${it.ignored ? `
+      <button class="popup-unignore-btn" data-id="${it.id}" style="background:transparent;border:1px solid #ddd;color:#555;border-radius:2px;cursor:pointer;margin-top:4px">
+        무시 해제
+      </button>
+    ` : ''}
+    <button class="popup-delete-btn" data-id="${it.id}" style="background:transparent;border:1px solid #f4dad6;color:#c0392b;border-radius:2px;cursor:pointer;margin-top:4px">
+      🗑 이 주소 삭제
+    </button>
+  </div>`);
+  return lines.join('');
+}
+
+function refreshMarkers() {
+  if (!state.map) return;
+  clearMarkers();
+  const points = [];
+  state.items.forEach((it) => {
+    if (!it.result || !it.result.ok) return;
+    const status = getEffectiveStatus(it);
+    let pinClass;
+    if (it.result.multiple && !it.ignored) pinClass = 'warn';
+    else if (status === 'done') pinClass = 'done';
+    else pinClass = 'notyet';
+
+    const icon = L.divIcon({
+      className: 'pin-wrap',
+      html: `<div class="pin ${pinClass}"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+    const marker = L.marker([it.result.lat, it.result.lng], { icon }).addTo(state.map);
+    marker.bindPopup(buildPopupHtml(it));
+    marker.on('popupopen', (e) => {
+      const popupEl = e.popup.getElement();
+      const toggleBtn = popupEl.querySelector('.popup-toggle-btn');
+      const ignoreBtn = popupEl.querySelector('.popup-ignore-btn');
+      const unignoreBtn = popupEl.querySelector('.popup-unignore-btn');
+      const deleteBtn = popupEl.querySelector('.popup-delete-btn');
+
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+          const id = toggleBtn.dataset.id;
+          const item = state.itemsById[id];
+          if (!item) return;
+          const cur = getEffectiveStatus(item);
+          updateItemField(id, { userStatus: cur === 'done' ? 'notyet' : 'done' });
+          marker.closePopup();
+        });
+      }
+      if (ignoreBtn) {
+        ignoreBtn.addEventListener('click', () => {
+          updateItemField(ignoreBtn.dataset.id, { ignored: true });
+          marker.closePopup();
+        });
+      }
+      if (unignoreBtn) {
+        unignoreBtn.addEventListener('click', () => {
+          updateItemField(unignoreBtn.dataset.id, { ignored: false });
+          marker.closePopup();
+        });
+      }
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+          const id = deleteBtn.dataset.id;
+          const item = state.itemsById[id];
+          deleteItem(id, item);
+          marker.closePopup();
+        });
+      }
+    });
+    state.markers.push({ marker, id: it.id });
+    points.push([it.result.lat, it.result.lng]);
+  });
+  if (points.length > 0 && !state._mapFitted) {
+    state.map.fitBounds(points, { padding: [30, 30] });
+    state._mapFitted = true;
+  }
+}
+
+function fitToAllMarkers() {
+  const points = state.markers.map(m => m.marker.getLatLng());
+  if (points.length > 0) {
+    state.map.fitBounds(points, { padding: [30, 30] });
+  } else {
+    state.map.setView([37.6027, 126.9290], 13);
+  }
+}
+
+// ============================================================
+// GPS 위치 추적
+// ============================================================
+function startLocationTracking() {
+  if (!navigator.geolocation) {
+    showToast('이 브라우저는 위치 기능을 지원하지 않습니다');
+    return;
+  }
+
+  const btn = $('locateBtn');
+  
+  // 이미 추적 중이면 중지
+  if (state.watchId !== null) {
+    stopLocationTracking();
+    return;
+  }
+
+  btn.classList.add('locating');
+  showToast('현재 위치 확인 중...');
+
+  state.watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      btn.classList.remove('locating');
+      btn.classList.add('active');
+      
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      const latlng = [lat, lng];
+
+      // 마커 업데이트
+      if (!state.myMarker) {
+        const icon = L.divIcon({
+          className: 'me-marker-wrap',
+          html: '<div class="me-pulse"></div>',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+        state.myMarker = L.marker(latlng, { icon, zIndexOffset: 1000 }).addTo(state.map);
+        state.myMarker.bindPopup('<div style="font-size:12px;font-family:sans-serif"><strong>내 위치</strong></div>');
+
+        // 정확도 원
+        state.myAccuracyCircle = L.circle(latlng, {
+          radius: accuracy,
+          color: '#6366f1',
+          fillColor: '#6366f1',
+          fillOpacity: 0.08,
+          weight: 1,
+          opacity: 0.3
+        }).addTo(state.map);
+
+        // 처음 한 번만 자동 이동 + 추적 모드 켜기
+        state.trackingMode = true;
+        state.map.setView(latlng, Math.max(state.map.getZoom(), 16));
+        showToast('현재 위치 표시됨');
+      } else {
+        state.myMarker.setLatLng(latlng);
+        state.myAccuracyCircle.setLatLng(latlng);
+        state.myAccuracyCircle.setRadius(accuracy);
+        // 추적 모드면 따라가기
+        if (state.trackingMode) {
+          state.map.panTo(latlng);
+        }
+      }
+    },
+    (err) => {
+      btn.classList.remove('locating', 'active');
+      state.watchId = null;
+      let msg = '위치 정보를 가져올 수 없습니다';
+      if (err.code === 1) msg = '위치 권한이 거부되었습니다. 브라우저 설정에서 허용해주세요';
+      else if (err.code === 2) msg = '위치를 확인할 수 없습니다 (GPS 신호 없음)';
+      else if (err.code === 3) msg = '위치 확인 시간 초과';
+      showToast(msg, 4000);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 5000
+    }
+  );
+}
+
+function stopLocationTracking() {
+  if (state.watchId !== null) {
+    navigator.geolocation.clearWatch(state.watchId);
+    state.watchId = null;
+  }
+  if (state.myMarker) {
+    state.map.removeLayer(state.myMarker);
+    state.myMarker = null;
+  }
+  if (state.myAccuracyCircle) {
+    state.map.removeLayer(state.myAccuracyCircle);
+    state.myAccuracyCircle = null;
+  }
+  state.trackingMode = false;
+  $('locateBtn').classList.remove('active', 'locating');
+  showToast('위치 추적 중지');
+}
+
+// ============================================================
+// Firestore
+// ============================================================
+function setLiveStatus(status, text) {
+  const dot = $('liveDot');
+  dot.classList.remove('connected', 'error');
+  if (status === 'connected') dot.classList.add('connected');
+  if (status === 'error') dot.classList.add('error');
+  $('liveText').textContent = text;
+}
+
+function startLiveSync() {
+  const { db, collection, onSnapshot } = window._fb;
+  setLiveStatus('connecting', '연결 중...');
+
+  state.unsubscribe = onSnapshot(
+    collection(db, FIRESTORE_COLLECTION),
+    (snap) => {
+      const items = [];
+      const byId = {};
+      snap.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        items.push(data);
+        byId[d.id] = data;
+      });
+      state.items = items;
+      state.itemsById = byId;
+      setLiveStatus('connected', `연결됨 · ${items.length}건`);
+      renderResults();
+      refreshMarkers();
+    },
+    (err) => {
+      console.error(err);
+      setLiveStatus('error', '연결 오류');
+      showToast('Firebase 연결 오류: ' + err.message);
+    }
+  );
+}
+
+async function updateItemField(id, fields) {
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, FIRESTORE_COLLECTION, id), fields, { merge: true });
+    showToast('변경사항 저장됨');
+  } catch (e) {
+    showToast('저장 실패: ' + e.message);
+  }
+}
+
+async function deleteItem(id, item) {
+  const label = item?.business || item?.original || '이 항목';
+  if (!confirm(`"${label}"을(를) 삭제하시겠습니까?\n\n※ 모든 사용자에게서 즉시 사라집니다.`)) return;
+  try {
+    const { db, doc, deleteDoc } = window._fb;
+    await deleteDoc(doc(db, FIRESTORE_COLLECTION, id));
+    showToast('삭제됨');
+  } catch (e) {
+    showToast('삭제 실패: ' + e.message);
+  }
+}
+
+async function uploadAllItems(items) {
+  const { db, doc, setDoc, writeBatch, collection, getDocs } = window._fb;
+
+  if (!confirm(`기존 데이터(${state.items.length}건)를 삭제하고 새로 ${items.length}건을 업로드합니다.\n\n※ 모든 사용자에게 즉시 반영됩니다.`)) {
+    return false;
+  }
+
+  const existing = await getDocs(collection(db, FIRESTORE_COLLECTION));
+  let batch = writeBatch(db);
+  let count = 0;
+  for (const d of existing.docs) {
+    batch.delete(d.ref);
+    count++;
+    if (count % 400 === 0) {
+      await batch.commit();
+      batch = writeBatch(db);
+    }
+  }
+  if (count % 400 !== 0) await batch.commit();
+
+  batch = writeBatch(db);
+  const usedIds = new Set();
+  count = 0;
+  for (const it of items) {
+    const id = makeId(it.business, it.cleaned, usedIds);
+    usedIds.add(id);
+    batch.set(doc(db, FIRESTORE_COLLECTION, id), it);
+    count++;
+    if (count % 400 === 0) {
+      await batch.commit();
+      batch = writeBatch(db);
+    }
+  }
+  if (count % 400 !== 0) await batch.commit();
+  return true;
+}
+
+async function deleteAllItems() {
+  if (!confirm(`정말 모든 데이터(${state.items.length}건)를 삭제하시겠습니까?\n\n※ 모든 사용자에게서 사라집니다.`)) return;
+  const { db, collection, getDocs, writeBatch } = window._fb;
+  const snap = await getDocs(collection(db, FIRESTORE_COLLECTION));
+  let batch = writeBatch(db);
+  let count = 0;
+  for (const d of snap.docs) {
+    batch.delete(d.ref);
+    count++;
+    if (count % 400 === 0) {
+      await batch.commit();
+      batch = writeBatch(db);
+    }
+  }
+  if (count % 400 !== 0) await batch.commit();
+  showToast('전체 삭제 완료');
+  state._mapFitted = false;
+}
+
+// ============================================================
+// 매칭 + 업로드
+// ============================================================
+async function processData() {
+  let items = [];
+  if (state.inputMode === 'text') {
+    const text = $('inputAddrs').value;
+    const lines = text.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (/^시설주소|^주소$|^address/i.test(trimmed)) continue;
+      const splits = splitMultipleAddresses(trimmed);
+      for (const part of splits) {
+        const cleaned = cleanAddressString(part);
+        if (cleaned) {
+          items.push({
+            original: part,
+            cleaned: cleaned.cleaned,
+            cleanedWithDistrict: cleaned.cleanedWithDistrict,
+            business: '', industry: '', owner: '', phone: '',
+            date: '', area: '', dong: '', team: '', no: '', remark: '',
+            statusOriginal: '',
+          });
+        }
+      }
+    }
+  } else {
+    items = state.pendingFile || [];
+  }
+
+  if (items.length === 0) {
+    alert('처리할 데이터가 없습니다.');
+    return;
+  }
+
+  $('processBtn').disabled = true;
+  $('processBtn').textContent = '매칭 중...';
+  $('progress').classList.add('active');
+  $('resultsPanel').style.display = 'block';
+
+  let done = 0, notyet = 0, warn = 0;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    let r = await geocode(it.cleaned);
+    if (!r.ok && r.error === '결과 없음') {
+      r = await geocode(it.cleanedWithDistrict);
+    }
+    it.result = r;
+    if (r.ok) {
+      if (r.multiple) warn++;
+      else if (isInspected(it.statusOriginal)) done++;
+      else notyet++;
+    }
+    $('progressBar').style.width = `${((i + 1) / items.length) * 100}%`;
+    $('statTotal').textContent = i + 1;
+    $('statDone').textContent = done;
+    $('statNotYet').textContent = notyet;
+    $('statWarn').textContent = warn;
+    await new Promise(res => setTimeout(res, 80));
+  }
+
+  $('processBtn').textContent = '공유 저장 중...';
+  const uploaded = await uploadAllItems(items);
+
+  $('processBtn').disabled = false;
+  $('processBtn').textContent = '매칭 + 공유 저장';
+  setTimeout(() => $('progress').classList.remove('active'), 800);
+
+  if (uploaded) {
+    showToast('✓ 모든 사용자에게 공유되었습니다');
+    state.pendingFile = null;
+    $('uploadArea').querySelector('.text').innerHTML = '클릭 또는 드래그<br><span style="font-size:10px;color:var(--ink-muted)">.xlsx, .xls, .csv</span>';
+    $('fileInput').value = '';
+    $('inputAddrs').value = '';
+    state._mapFitted = false;
+    $('adminPanel').classList.add('collapsed');
+  }
+}
+
+async function retryFailed() {
+  $('retryFailedBtn').disabled = true;
+  const failed = state.items.filter(x => !x.result?.ok);
+  for (const it of failed) {
+    let r = await geocode(it.cleaned);
+    if (!r.ok && r.error === '결과 없음') {
+      r = await geocode(it.cleanedWithDistrict);
+    }
+    await updateItemField(it.id, { result: r });
+    await new Promise(res => setTimeout(res, 80));
+  }
+  $('retryFailedBtn').disabled = false;
+  showToast('재시도 완료');
+}
+
+// ============================================================
+// 결과 렌더링
+// ============================================================
+function renderResults() {
+  const succeeded = state.items.filter(x => x.result?.ok);
+  const done = succeeded.filter(x => getEffectiveStatus(x) === 'done').length;
+  const notyet = succeeded.filter(x => getEffectiveStatus(x) === 'notyet' && !(x.result.multiple && !x.ignored)).length;
+  const warn = succeeded.filter(x => x.result.multiple && !x.ignored).length;
+
+  $('statTotal').textContent = state.items.length;
+  $('statDone').textContent = done;
+  $('statNotYet').textContent = notyet;
+  $('statWarn').textContent = warn;
+
+  let filtered;
+  if (state.filter === 'done') filtered = state.items.filter(x => x.result?.ok && getEffectiveStatus(x) === 'done');
+  else if (state.filter === 'notyet') filtered = state.items.filter(x => x.result?.ok && getEffectiveStatus(x) === 'notyet' && !(x.result.multiple && !x.ignored));
+  else if (state.filter === 'warn') filtered = state.items.filter(x => x.result?.ok && x.result.multiple && !x.ignored);
+  else if (state.filter === 'fail') filtered = state.items.filter(x => x.result && !x.result.ok);
+  else filtered = state.items;
+
+  filtered.sort((a, b) => (a.business || '').localeCompare(b.business || '', 'ko'));
+
+  const list = $('resultList');
+  if (state.items.length === 0) {
+    list.innerHTML = '<div class="empty">데이터가 없습니다. 위 "관리"를 펼쳐 엑셀을 올려주세요.</div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">이 필터에 해당하는 항목이 없습니다.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((it, i) => {
+    const status = getEffectiveStatus(it);
+    let resultTag = '', resultInfo = '';
+    if (!it.result) {
+      resultTag = '<span class="tag pending">대기</span>';
+      resultInfo = `<div class="cleaned">→ ${escapeHtml(it.cleaned)}</div>`;
+    } else if (it.result.ok && (!it.result.multiple || it.ignored)) {
+      resultTag = it.ignored ? '<span class="tag ignored">무시 처리</span>' : '<span class="tag ok">매칭OK</span>';
+      resultInfo = `<div class="cleaned">→ ${escapeHtml(it.result.matchedAddress)}</div>`;
+    } else if (it.result.ok && it.result.multiple) {
+      resultTag = '<span class="tag warn">결과 다수</span>';
+      resultInfo = `<div class="cleaned">→ ${escapeHtml(it.result.matchedAddress)}</div><div class="err">검색 결과가 여러 개</div>`;
+    } else {
+      resultTag = '<span class="tag fail">실패</span>';
+      resultInfo = `<div class="cleaned">시도: ${escapeHtml(it.cleaned)}</div><div class="err">${escapeHtml(it.result.error)}</div>`;
+    }
+
+    const statusTag = it.result?.ok
+      ? (status === 'done' ? '<span class="tag done">✓ 점검완료</span>' : '<span class="tag notyet">미완료</span>')
+      : '';
+
+    const metaParts = [];
+    if (it.industry) metaParts.push(it.industry);
+    if (it.owner) metaParts.push(it.owner);
+    if (it.date) metaParts.push(`점검: ${it.date}`);
+    const meta = metaParts.length > 0 ? `<div class="meta">${metaParts.map(escapeHtml).join(' · ')}</div>` : '';
+
+    const showIgnore = it.result?.ok && it.result.multiple && !it.ignored;
+    const showUnignore = it.ignored;
+
+    return `
+      <div class="item" data-id="${escapeHtml(it.id)}">
+        <div class="idx">${String(i + 1).padStart(3, '0')}</div>
+        <div class="body">
+          ${statusTag}${resultTag}
+          ${it.business ? `<div class="biz">${escapeHtml(it.business)}</div>` : ''}
+          ${meta}
+          <div class="original">${escapeHtml(it.original)}</div>
+          ${resultInfo}
+          <div class="row-actions">
+            ${it.result?.ok ? `
+              <button class="${status === 'done' ? 'secondary' : 'done'} toggle-btn" data-id="${escapeHtml(it.id)}">
+                ${status === 'done' ? '미완료로' : '✓ 완료로'}
+              </button>
+              <button class="secondary focus-btn" data-id="${escapeHtml(it.id)}">지도에서</button>
+              ${showIgnore ? `<button class="secondary ignore-btn" data-id="${escapeHtml(it.id)}">무시(정상처리)</button>` : ''}
+              ${showUnignore ? `<button class="secondary unignore-btn" data-id="${escapeHtml(it.id)}">무시 해제</button>` : ''}
+            ` : ''}
+            <button class="secondary edit-btn" data-id="${escapeHtml(it.id)}">주소 수정</button>
+            <button class="secondary delete-btn" data-id="${escapeHtml(it.id)}" style="color:var(--accent);border-color:var(--accent-soft)">🗑 삭제</button>
+          </div>
+          <div class="edit-area" style="display:none;margin-top:8px">
+            <input class="edit-input" type="text" value="${escapeHtml(it.cleaned)}">
+            <div class="row" style="margin-top:6px">
+              <button class="re-geocode" data-id="${escapeHtml(it.id)}">재매칭</button>
+              <button class="secondary cancel-edit">취소</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const id = e.target.dataset.id;
+      const it = state.itemsById[id];
+      if (!it) return;
+      const cur = getEffectiveStatus(it);
+      updateItemField(id, { userStatus: cur === 'done' ? 'notyet' : 'done' });
+    });
+  });
+  list.querySelectorAll('.ignore-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      updateItemField(e.target.dataset.id, { ignored: true });
+    });
+  });
+  list.querySelectorAll('.unignore-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      updateItemField(e.target.dataset.id, { ignored: false });
+    });
+  });
+  list.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const id = e.target.dataset.id;
+      const item = state.itemsById[id];
+      deleteItem(id, item);
+    });
+  });
+  list.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const item = e.target.closest('.item');
+      const ea = item.querySelector('.edit-area');
+      ea.style.display = ea.style.display === 'block' ? 'none' : 'block';
+    });
+  });
+  list.querySelectorAll('.cancel-edit').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.target.closest('.edit-area').style.display = 'none';
+    });
+  });
+  list.querySelectorAll('.focus-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const id = e.target.dataset.id;
+      const it = state.itemsById[id];
+      if (it?.result?.ok) {
+        state.map.setView([it.result.lat, it.result.lng], 17);
+        const found = state.markers.find(m => m.id === id);
+        if (found) found.marker.openPopup();
+        if (window.innerWidth < 900) {
+          $('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    });
+  });
+  list.querySelectorAll('.re-geocode').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const id = e.target.dataset.id;
+      const newAddr = e.target.closest('.edit-area').querySelector('.edit-input').value.trim();
+      if (!newAddr) return;
+      e.target.disabled = true;
+      const r = await geocode(newAddr);
+      await updateItemField(id, { cleaned: newAddr, result: r });
+      e.target.disabled = false;
+    });
+  });
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function exportCsv() {
+  if (state.items.length === 0) return;
+  const rows = [['상호', '업종', '대표자', '전화', '점검일자', '원본주소', '정제주소', '매칭주소', '위도', '경도', '점검상태', '엑셀원본상태', '매칭결과', '메모']];
+  for (const it of state.items) {
+    const status = getEffectiveStatus(it) === 'done' ? '완료' : '미완료';
+    const matchStatus = !it.result ? '미처리'
+      : it.result.ok ? (it.ignored ? '무시처리' : (it.result.multiple ? '확인필요' : '성공'))
+      : '실패';
+    rows.push([
+      it.business, it.industry, it.owner, it.phone, it.date,
+      it.original, it.cleaned,
+      it.result?.matchedAddress || '',
+      it.result?.lat || '', it.result?.lng || '',
+      status, it.statusOriginal,
+      matchStatus, it.result?.error || ''
+    ]);
+  }
+  const csv = rows.map(r => r.map(c => {
+    const s = String(c).replace(/"/g, '""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `inspection_map_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// 초기화
+// ============================================================
+function init() {
+  $('adminPanel').querySelector('h2').addEventListener('click', () => {
+    $('adminPanel').classList.toggle('collapsed');
+  });
+
+  document.querySelectorAll('.input-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.input-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      state.inputMode = t.dataset.input;
+      document.querySelectorAll('.input-content').forEach(c => c.classList.remove('active'));
+      $(`input${state.inputMode === 'file' ? 'File' : 'Text'}Tab`).classList.add('active');
+    });
+  });
+
+  const uploadArea = $('uploadArea');
+  const fileInput = $('fileInput');
+
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    await handleFile(file);
+  });
+  uploadArea.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadArea.classList.add('drag');
+  });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag'));
+  uploadArea.addEventListener('drop', async e => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    await handleFile(file);
+  });
+
+  $('clearLocalBtn').addEventListener('click', () => {
+    $('inputAddrs').value = '';
+    fileInput.value = '';
+    state.pendingFile = null;
+    $('uploadArea').querySelector('.text').innerHTML = '클릭 또는 드래그<br><span style="font-size:10px;color:var(--ink-muted)">.xlsx, .xls, .csv</span>';
+    $('resultsPanel').style.display = 'none';
+  });
+  $('processBtn').addEventListener('click', processData);
+  $('exportCsvBtn').addEventListener('click', exportCsv);
+  $('retryFailedBtn').addEventListener('click', retryFailed);
+  $('clearAllBtn').addEventListener('click', deleteAllItems);
+
+  // 지도 컨트롤
+  $('locateBtn').addEventListener('click', startLocationTracking);
+  $('fitBtn').addEventListener('click', fitToAllMarkers);
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      state.filter = t.dataset.tab;
+      renderResults();
+    });
+  });
+
+  initMap();
+
+  const tryStart = () => {
+    if (window._fb) startLiveSync();
+    else setTimeout(tryStart, 100);
+  };
+  tryStart();
+}
+
+async function handleFile(file) {
+  try {
+    $('uploadArea').querySelector('.text').innerHTML = `<strong>${escapeHtml(file.name)}</strong> 읽는 중...`;
+    const items = await loadExcelFile(file);
+    if (items.length === 0) {
+      alert('데이터를 찾을 수 없습니다.');
+      return;
+    }
+    state.pendingFile = items;
+    const doneCount = items.filter(it => isInspected(it.statusOriginal)).length;
+    $('uploadArea').querySelector('.text').innerHTML =
+      `<strong>${escapeHtml(file.name)}</strong><br>
+      <span style="font-size:10px;color:var(--ink-muted)">${items.length}건 (완료 ${doneCount}건) — "매칭 + 공유 저장" 누르세요</span>`;
+  } catch (e) {
+    alert('파일 읽기 실패: ' + e.message);
+    $('uploadArea').querySelector('.text').innerHTML = '클릭 또는 드래그<br><span style="font-size:10px;color:var(--ink-muted)">.xlsx, .xls, .csv</span>';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
