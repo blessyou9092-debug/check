@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a1a">
+<title>은평구 주소 지도 매핑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --bg-card: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #555;
+    --ink-muted: #8a8a8a;
+    --line: #e2ddd2;
+    --line-soft: #ebe6dc;
+    --accent: #c0392b;
+    --accent-soft: #f4dad6;
+    --warn: #d68910;
+    --warn-soft: #fbecc8;
+    --ok: #1e7e5a;
+    --ok-soft: #d4ebe1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+    font-size: 15px;
+  }
+  body { padding: 16px 14px 80px; }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+  }
+  h1 {
+    font-family: 'Gowun Batang', serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    margin-top: 6px;
+  }
+  .sub { color: var(--ink-soft); font-size: 13px; margin-top: 4px; }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 900px) {
+    body { padding: 32px 24px 64px; }
+    h1 { font-size: 32px; }
+    .badge { font-size: 11px; padding: 4px 10px; }
+    .grid { grid-template-columns: 1fr 1.4fr; gap: 24px; }
+    header { padding-bottom: 24px; margin-bottom: 32px; }
+  }
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px;
+  }
+  @media (min-width: 900px) { .panel { padding: 24px; } }
+  .panel h2 {
+    font-family: 'Gowun Batang', serif;
+    font-size: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  @media (min-width: 900px) { .panel h2 { font-size: 18px; } }
+  .panel h2 .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+  textarea, input {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: #fafaf7;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    border-radius: 2px;
+    color: var(--ink);
+    resize: vertical;
+    -webkit-appearance: none;
+  }
+  textarea:focus, input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+  }
+  textarea { min-height: 160px; line-height: 1.5; }
+  @media (min-width: 900px) { textarea { min-height: 200px; } }
+  .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 100px; }
+  button {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    padding: 11px 16px;
+    font-family: 'IBM Plex Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 2px;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+  }
+  button:active { opacity: 0.7; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .hint a { color: var(--accent); }
+  .hint code {
+    background: var(--line-soft);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+  }
+  #map {
+    width: 100%;
+    height: 360px;
+    border-radius: 2px;
+    background: #ebe6dc;
+    border: 1px solid var(--line);
+    z-index: 1;
+  }
+  @media (min-width: 900px) { #map { height: 520px; } }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .stat {
+    text-align: center;
+    padding: 10px 4px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+  }
+  .stat .n {
+    font-family: 'Gowun Batang', serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .stat .l {
+    font-size: 10px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+  }
+  .stat.ok .n { color: var(--ok); }
+  .stat.warn .n { color: var(--warn); }
+  .stat.fail .n { color: var(--accent); }
+  .results { margin-top: 14px; }
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+    font-weight: 500;
+  }
+  .list {
+    max-height: 460px;
+    overflow-y: auto;
+    border: 1px solid var(--line-soft);
+    border-radius: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .item {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    align-items: start;
+    font-size: 13px;
+  }
+  .item:last-child { border-bottom: none; }
+  .item .idx {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-muted);
+    padding-top: 2px;
+  }
+  .item .body { min-width: 0; }
+  .item .original {
+    color: var(--ink);
+    word-break: break-all;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .item .cleaned {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ok);
+    word-break: break-all;
+    line-height: 1.4;
+  }
+  .item .err {
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 2px;
+  }
+  .item .row-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .item .row-actions button {
+    flex: 0 0 auto;
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    margin-right: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.fail { background: var(--accent-soft); color: var(--accent); }
+  .tag.pending { background: var(--line-soft); color: var(--ink-muted); }
+  .empty {
+    padding: 32px;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 13px;
+  }
+  .api-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .api-row input { flex: 1; }
+  .api-row button { flex: 0 0 auto; }
+  .footer-note {
+    margin-top: 24px;
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+  .edit-input { width: 100%; margin-top: 6px; }
+  .progress {
+    margin-top: 10px;
+    height: 4px;
+    background: var(--line-soft);
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+  }
+  .progress.active { display: block; }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s;
+  }
+  .pin {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .pin.ok { background: #c0392b; }
+  .pin.warn { background: #d68910; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">Eunpyeong · Geocoding</span>
+    <h1>주소 지도 매핑 도구</h1>
+    <div class="sub">V World API · 모바일 지원</div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2><span class="num">01</span> V World API 키</h2>
+        <div class="api-row">
+          <input type="text" id="apiKey" placeholder="V World 인증키 붙여넣기" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <button class="secondary" id="saveKey">저장</button>
+        </div>
+        <div class="hint">
+          <a href="https://www.vworld.kr" target="_blank">vworld.kr</a> → 회원가입 → 오픈API → 인증키 발급.
+          활용 URL은 <code>*</code> 또는 사용 도메인 입력. 키는 이 브라우저에만 저장됩니다.
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <h2><span class="num">02</span> 주소 입력</h2>
+        <textarea id="inputAddrs" placeholder="한 줄에 하나씩 주소 붙여넣기"></textarea>
+        <div class="row">
+          <button id="processBtn">매칭 시작</button>
+          <button class="secondary" id="loadSampleBtn">샘플</button>
+          <button class="secondary" id="clearBtn">비우기</button>
+        </div>
+        <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="hint">
+          헤더, 괄호 부가정보, 층/호수, "외 N개소"를 자동으로 처리합니다.
+        </div>
+      </div>
+
+      <div class="panel results" id="resultsPanel" style="margin-top:12px; display:none">
+        <h2><span class="num">03</span> 처리 결과</h2>
+        <div class="stats">
+          <div class="stat"><div class="n" id="statTotal">0</div><div class="l">전체</div></div>
+          <div class="stat ok"><div class="n" id="statOk">0</div><div class="l">성공</div></div>
+          <div class="stat warn"><div class="n" id="statWarn">0</div><div class="l">확인</div></div>
+          <div class="stat fail"><div class="n" id="statFail">0</div><div class="l">실패</div></div>
+        </div>
+        <div class="tabs">
+          <div class="tab active" data-tab="all">전체</div>
+          <div class="tab" data-tab="ok">성공</div>
+          <div class="tab" data-tab="warn">확인</div>
+          <div class="tab" data-tab="fail">실패</div>
+        </div>
+        <div class="list" id="resultList"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="secondary" id="exportCsvBtn">CSV 저장</button>
+          <button class="secondary" id="retryFailedBtn">실패 재시도</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2><span class="num">04</span> 지도</h2>
+        <div id="map"></div>
+        <div class="hint" style="margin-top:8px">
+          빨간 점: 성공 · 노랑: 확인 필요 · 점 클릭 시 주소 표시
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">EUNPYEONG · GEOCODE · v2.0</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+function splitMultipleAddresses(line) {
+  const oeMatch = line.match(/^(.+?)\s*외\s*\d+개소\s*\((.+?)\)\s*$/);
+  if (oeMatch) return [oeMatch[1].trim(), oeMatch[2].trim()];
+  return [line];
+}
+
+function cleanAddress(raw) {
+  let s = raw.trim();
+  if (!s) return null;
+  let parenInfo = null;
+  const parenMatch = s.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  if (parenMatch) {
+    s = parenMatch[1].trim();
+    parenInfo = parenMatch[2].trim();
+  }
+  let road = s;
+  const commaIdx = s.indexOf(',');
+  if (commaIdx >= 0) road = s.substring(0, commaIdx).trim();
+  const roadPattern = /^(.+?(?:로|길|대로))\s+(\d+(?:-\d+)?)/;
+  const roadMatch = road.match(roadPattern);
+  let cleaned = roadMatch ? `${roadMatch[1]} ${roadMatch[2]}` : road;
+  return {
+    original: raw.trim(),
+    cleaned: cleaned,
+    cleanedWithDistrict: `서울특별시 은평구 ${cleaned}`,
+    parenInfo: parenInfo
+  };
+}
+
+function parseInput(text) {
+  const lines = text.split(/\r?\n/);
+  const results = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^시설주소|^주소$|^address/i.test(trimmed)) continue;
+    if (/^[-=]+$/.test(trimmed)) continue;
+    const splits = splitMultipleAddresses(trimmed);
+    for (const part of splits) {
+      const cleaned = cleanAddress(part);
+      if (cleaned) results.push(cleaned);
+    }
+  }
+  return results;
+}
+
+const VWORLD_URL = 'https://api.vworld.kr/req/address';
+
+async function geocodeOnce(address, apiKey, type) {
+  const params = new URLSearchParams({
+    service: 'address',
+    request: 'getcoord',
+    version: '2.0',
+    crs: 'EPSG:4326',
+    address: address,
+    refine: 'true',
+    simple: 'false',
+    format: 'json',
+    type: type,
+    key: apiKey
+  });
+  const res = await fetch(`${VWORLD_URL}?${params.toString()}`);
+  if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+  const data = await res.json();
+  if (data.response?.status === 'OK' && data.response.result) {
+    const r = data.response.result;
+    return {
+      ok: true,
+      lat: parseFloat(r.point.y),
+      lng: parseFloat(r.point.x),
+      matchedAddress: r.text || data.response.refined?.text || address
+    };
+  }
+  return { ok: false, error: data.response?.status === 'NOT_FOUND' ? '결과 없음' : (data.response?.error?.text || '매칭 실패') };
+}
+
+async function geocode(address, apiKey) {
+  try {
+    let r = await geocodeOnce(address, apiKey, 'road');
+    if (r.ok) return r;
+    r = await geocodeOnce(address, apiKey, 'parcel');
+    if (r.ok) { r.fallback = true; return r; }
+    return r;
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+const SAMPLE = `시설주소(도로명)
+서오릉로 127, 3층 (역촌동)
+연서로 134, 신성빌딩 지층 (역촌동)
+연서로 130, 대지빌딩 외 1개소(은평로 147, 미주빌딩 3층)
+진흥로 103, 기린빌딩 6층 (역촌동)
+진흥로 87, 3층 (역촌동)
+연서로 128, 정진탑 (역촌동)
+연서로 9, 지하1층 (역촌동, 센타폴리스)
+은평로 34 (신사동, 신창빌딩)
+가좌로 306, 5층 501호 (신사동)
+증산로 413, 동현빌딩 3층 (신사동)
+은평터널로 192-3, B1층 (신사동, 호림트윈타워1차)
+수색로 200, 상가동 2층 (증산동, DMC센트럴자이)
+은평터널로 15, 상가동 1층 204호 (DMC파인시티자이)`;
+
+let state = {
+  apiKey: localStorage.getItem('vworld_api_key') || '',
+  items: [],
+  filter: 'all',
+  map: null,
+  markers: []
+};
+
+const $ = id => document.getElementById(id);
+
+function flash(btn, text) {
+  const orig = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => btn.textContent = orig, 1500);
+}
+
+function initMap() {
+  state.map = L.map('map', {
+    center: [37.6027, 126.9290],
+    zoom: 13,
+    tap: true
+  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+  }).addTo(state.map);
+}
+
+function clearMarkers() {
+  state.markers.forEach(m => state.map.removeLayer(m));
+  state.markers = [];
+}
+
+function refreshMarkers() {
+  if (!state.map) return;
+  clearMarkers();
+  const points = [];
+  state.items.forEach(it => {
+    if (!it.result || !it.result.ok) return;
+    const isWarn = it.result.fallback;
+    const icon = L.divIcon({
+      className: 'pin-wrap',
+      html: `<div class="pin ${isWarn ? 'warn' : 'ok'}"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7]
+    });
+    const marker = L.marker([it.result.lat, it.result.lng], { icon }).addTo(state.map);
+    marker.bindPopup(`
+      <div style="font-family:'IBM Plex Sans KR',sans-serif;font-size:12px;max-width:220px">
+        <div style="font-weight:600;margin-bottom:4px">${escapeHtml(it.original)}</div>
+        <div style="color:#666;font-size:11px">→ ${escapeHtml(it.result.matchedAddress)}</div>
+        ${isWarn ? '<div style="color:#d68910;font-size:10px;margin-top:3px">⚠ 지번주소로 매칭됨</div>' : ''}
+      </div>
+    `);
+    state.markers.push(marker);
+    points.push([it.result.lat, it.result.lng]);
+  });
+  if (points.length > 0) {
+    state.map.fitBounds(points, { padding: [30, 30] });
+  }
+}
+
+async function processAddresses() {
+  if (!state.apiKey) {
+    alert('V World API 키를 먼저 입력해주세요.');
+    return;
+  }
+  const text = $('inputAddrs').value;
+  const parsed = parseInput(text);
+  if (parsed.length === 0) {
+    alert('입력된 주소가 없습니다.');
+    return;
+  }
+  state.items = parsed.map(p => ({ ...p, result: null }));
+  $('resultsPanel').style.display = 'block';
+  renderResults();
+  $('processBtn').disabled = true;
+  $('processBtn').textContent = '매칭 중...';
+  $('progress').classList.add('active');
+
+  for (let i = 0; i < state.items.length; i++) {
+    const it = state.items[i];
+    let r = await geocode(it.cleaned, state.apiKey);
+    if (!r.ok) r = await geocode(it.cleanedWithDistrict, state.apiKey);
+    it.result = r;
+    $('progressBar').style.width = `${((i + 1) / state.items.length) * 100}%`;
+    if (i % 3 === 0) renderResults();
+    await new Promise(res => setTimeout(res, 100));
+  }
+  renderResults();
+  refreshMarkers();
+  $('processBtn').disabled = false;
+  $('processBtn').textContent = '매칭 시작';
+  setTimeout(() => $('progress').classList.remove('active'), 800);
+}
+
+async function retryFailed() {
+  if (!state.apiKey) return;
+  $('retryFailedBtn').disabled = true;
+  for (const it of state.items) {
+    if (!it.result || !it.result.ok) {
+      let r = await geocode(it.cleaned, state.apiKey);
+      if (!r.ok) r = await geocode(it.cleanedWithDistrict, state.apiKey);
+      it.result = r;
+      await new Promise(res => setTimeout(res, 100));
+    }
+  }
+  renderResults();
+  refreshMarkers();
+  $('retryFailedBtn').disabled = false;
+}
+
+function renderResults() {
+  const total = state.items.length;
+  const ok = state.items.filter(x => x.result?.ok && !x.result.fallback).length;
+  const warn = state.items.filter(x => x.result?.ok && x.result.fallback).length;
+  const fail = state.items.filter(x => x.result && !x.result.ok).length;
+
+  $('statTotal').textContent = total;
+  $('statOk').textContent = ok;
+  $('statWarn').textContent = warn;
+  $('statFail').textContent = fail;
+
+  let filtered;
+  if (state.filter === 'ok') filtered = state.items.filter(x => x.result?.ok && !x.result.fallback);
+  else if (state.filter === 'warn') filtered = state.items.filter(x => x.result?.ok && x.result.fallback);
+  else if (state.filter === 'fail') filtered = state.items.filter(x => x.result && !x.result.ok);
+  else filtered = state.items;
+
+  const list = $('resultList');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty">표시할 항목이 없습니다.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((it, i) => {
+    const realIdx = state.items.indexOf(it);
+    let tag = '', info = '';
+    if (!it.result) {
+      tag = '<span class="tag pending">대기</span>';
+      info = `<div class="cleaned">→ ${escapeHtml(it.cleaned)}</div>`;
+    } else if (it.result.ok && !it.result.fallback) {
+      tag = '<span class="tag ok">성공</span>';
+      info = `<div class="cleaned">→ ${escapeHtml(it.result.matchedAddress)}</div>`;
+    } else if (it.result.ok && it.result.fallback) {
+      tag = '<span class="tag warn">지번 매칭</span>';
+      info = `<div class="cleaned">→ ${escapeHtml(it.result.matchedAddress)}</div><div class="err">도로명 실패, 지번으로 대체 — 확인 필요</div>`;
+    } else {
+      tag = '<span class="tag fail">실패</span>';
+      info = `<div class="cleaned">시도: ${escapeHtml(it.cleaned)}</div><div class="err">${escapeHtml(it.result.error)}</div>`;
+    }
+    return `
+      <div class="item" data-idx="${realIdx}">
+        <div class="idx">${String(i + 1).padStart(3, '0')}</div>
+        <div class="body">
+          ${tag}
+          <div class="original">${escapeHtml(it.original)}</div>
+          ${info}
+          <div class="row-actions">
+            <button class="secondary edit-btn" data-idx="${realIdx}">수정</button>
+            ${it.result?.ok ? `<button class="secondary focus-btn" data-idx="${realIdx}">지도에서 보기</button>` : ''}
+          </div>
+          <div class="edit-area" style="display:none;margin-top:8px">
+            <input class="edit-input" type="text" value="${escapeHtml(it.cleaned)}">
+            <div class="row" style="margin-top:6px">
+              <button class="re-geocode" data-idx="${realIdx}">재매칭</button>
+              <button class="secondary cancel-edit">취소</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const item = e.target.closest('.item');
+      const ea = item.querySelector('.edit-area');
+      ea.style.display = ea.style.display === 'block' ? 'none' : 'block';
+    });
+  });
+  list.querySelectorAll('.cancel-edit').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.target.closest('.edit-area').style.display = 'none';
+    });
+  });
+  list.querySelectorAll('.focus-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const idx = parseInt(e.target.dataset.idx);
+      const it = state.items[idx];
+      if (it.result?.ok) {
+        state.map.setView([it.result.lat, it.result.lng], 17);
+        const marker = state.markers.find(m => {
+          const ll = m.getLatLng();
+          return Math.abs(ll.lat - it.result.lat) < 1e-6 && Math.abs(ll.lng - it.result.lng) < 1e-6;
+        });
+        if (marker) marker.openPopup();
+        if (window.innerWidth < 900) {
+          $('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    });
+  });
+  list.querySelectorAll('.re-geocode').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const idx = parseInt(e.target.dataset.idx);
+      const newAddr = e.target.closest('.edit-area').querySelector('.edit-input').value.trim();
+      if (!newAddr || !state.apiKey) return;
+      e.target.disabled = true;
+      const r = await geocode(newAddr, state.apiKey);
+      state.items[idx].cleaned = newAddr;
+      state.items[idx].result = r;
+      renderResults();
+      refreshMarkers();
+    });
+  });
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function exportCsv() {
+  if (state.items.length === 0) return;
+  const rows = [['원본주소', '정제주소', '매칭주소', '위도', '경도', '상태', '메모']];
+  for (const it of state.items) {
+    const status = !it.result ? '미처리'
+      : it.result.ok ? (it.result.fallback ? '지번매칭' : '성공')
+      : '실패';
+    rows.push([
+      it.original, it.cleaned,
+      it.result?.matchedAddress || '',
+      it.result?.lat || '', it.result?.lng || '',
+      status, it.result?.error || ''
+    ]);
+  }
+  const csv = rows.map(r => r.map(c => {
+    const s = String(c).replace(/"/g, '""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  }).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `address_geocoded_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function init() {
+  $('apiKey').value = state.apiKey;
+  $('saveKey').addEventListener('click', () => {
+    state.apiKey = $('apiKey').value.trim();
+    localStorage.setItem('vworld_api_key', state.apiKey);
+    flash($('saveKey'), '저장됨 ✓');
+  });
+  $('loadSampleBtn').addEventListener('click', () => $('inputAddrs').value = SAMPLE);
+  $('clearBtn').addEventListener('click', () => {
+    $('inputAddrs').value = '';
+    state.items = [];
+    renderResults();
+    clearMarkers();
+  });
+  $('processBtn').addEventListener('click', processAddresses);
+  $('exportCsvBtn').addEventListener('click', exportCsv);
+  $('retryFailedBtn').addEventListener('click', retryFailed);
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      state.filter = t.dataset.tab;
+      renderResults();
+    });
+  });
+  initMap();
+}
+
+init();
+</script>
+</body>
+</html>
