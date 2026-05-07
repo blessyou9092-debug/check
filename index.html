@@ -121,11 +121,16 @@
     border-radius: 2px;
     font-weight: 500;
   }
-  .panel.collapsible h2 {
+.panel.collapsible h2 {
     cursor: pointer;
     margin-bottom: 0;
     user-select: none;
     justify-content: space-between;
+    position: relative;
+    z-index: 2;
+  }
+  .panel.collapsible h2 * {
+    pointer-events: none;
   }
   .panel.collapsible h2::after {
     content: '▾';
@@ -1635,16 +1640,17 @@ function exportCsv() {
 // 초기화
 // ============================================================
 function init() {
-  // 모든 collapsible 패널에 토글 등록
+// 모든 collapsible 패널에 토글 등록
   document.querySelectorAll('.panel.collapsible').forEach(panel => {
     const header = panel.querySelector('h2');
-    if (header) {
-      header.style.cursor = 'pointer';
-      header.addEventListener('click', (e) => {
-        e.stopPropagation();
-        panel.classList.toggle('collapsed');
-      });
-    }
+    if (!header) return;
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      panel.classList.toggle('collapsed');
+      console.log('[toggle]', panel.id, panel.classList.contains('collapsed') ? 'closed' : 'open');
+    });
   });
 
   document.querySelectorAll('.input-tab').forEach(t => {
